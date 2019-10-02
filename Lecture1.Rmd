@@ -1,0 +1,99 @@
+---
+title: "Lecture 1"
+output: html_notebook
+---
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+```{r}
+plot(cars)
+```
+
+```{r}
+ysamp = sample(1:6,600,replace=T)
+hist(ysamp)
+```
+
+runif generates outcomes of uniform random variable  
+__QUESTION__: What is the plot argument?
+```{r}
+hist(1 + 3*runif(1000), prob=T)
+```
+Bernoulli
+```{r}
+n = 1000
+p = 0.3
+ysamp = as.integer(runif(n) > p)
+hist(ysamp, prob=T)
+```
+Binomial
+```{r}
+n = 100
+p = 0.5
+# represents just one run of the binomial
+ysamp = sum(as.integer(runif(n) < p)) 
+```
+Discrete distribution  
+__QUESTION__: How to generate the discrete distribution nicely?
+```{r}
+p <- c(0.1,0.2,0.3,0.1,0.1,0.2)
+x <- c(1  ,2  ,3  ,4  ,5  ,6)
+sum(p)
+```
+cdf = x^3
+```{r}
+n <- 10000
+u <- runif(n)
+x <- u^(1/3)
+hist(x, prob=TRUE)
+y <- seq(0, 1, .01)
+lines(y, 3*y^2)
+```
+Exponential distribution cdf = 1 - exp(-lambda * x)
+```{r}
+n <- 1000
+lambda <- 1.5
+hist(-log(runif(n))/lambda)
+hist(rexp(n, lambda))
+```
+Code for Beta sampler
+```{r}
+n <- 1000
+k <- 0
+j <- 0
+y <- numeric(n)
+c <- 3/2
+
+while (k < n) {
+  u <- runif(1)
+  j <- j + 1
+  x <- runif(1)
+  if (6 * x * (1-x) > c * u) {
+    k <- k+1
+    y[k] <- x
+  }
+}
+
+j / n # compare with c
+
+```
+Quantile comparison
+```{r}
+qs <- seq(0.01,0.99,by=0.01)
+steratio <- sqrt(qs*(1-qs))/dnorm(qnorm(qs))
+plot(qs, steratio, 
+     type="l", # type of the plot - lines
+     xlab="Quantile", ylab="Ratio ste(quantile)/ste(mean))",
+     lwd=3, # line width
+     col=4, # color
+     ylim=c(1, 4)
+     )
+#plot(qs,steratio,col=4,las=1,lwd=3,type="l",xlab="quantile",
+#     ylab="Ratio ste(quantile)/ste(mean)",ylim=c(0.5,1))
+```
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.

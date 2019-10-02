@@ -1,0 +1,117 @@
+```{r}
+set.seed(23)
+
+m <- 100
+x1 <- runif(m, 0, 0.5)
+(theta.hat <- mean(exp(-x1)) * 0.5)
+(var_theta.hat <- var(0.5 * exp(-x1)) / m)
+x2 <- rexp(m, 1)
+(theta.star <- mean(x2 <= 0.5))
+(var_theta.star <- var(x2 <= 0.5) / m)
+(exact_int <- 1 - exp(-0.5))
+n <- 100 # Number of iterations
+
+# Create a matrix with n * m random samples of U(0, 0.5)
+x1_samples <- matrix(runif(m * n, 0, 0.5), n, m)
+# Apply the 1st algorithm to each row
+theta.hat.vec <-
+	apply(x1_samples, MARGIN = 1, function(x) mean(exp(-x)) * 0.5)
+var.theta.hat.vec <-
+	apply(x1_samples, 1, function(x) var(exp(-x) * 0.5)/m)
+
+# Create a matrix with n * m random samples of Exp(1)
+x2_samples <- matrix(rexp(m * n, 1), n, m)
+# Apply the 2nd algorithm to each row
+theta.star.vec <- apply(x2_samples, 1, function(x) mean(x <= 0.5))
+var.theta.star.vec <- apply(x2_samples, 1, function(x) var(x <= 0.5) / m)
+```
+```{r}
+library(ggplot2)
+
+# Combine the data into one data.frame
+MC.data <-
+data.frame(MC_type = rep(c("theta.hat", "theta.star"), each = n),
+					 theta = c(theta.hat.vec, theta.star.vec),
+					 var.theta = c(var.theta.hat.vec, var.theta.star.vec))
+# this will construct a data frame with 3 columns (MC_type, theta, var_theta)
+# each column will be filled with the respective vectors
+```
+
+```{r}
+# Use the MC_type as fill-color and group-variable
+ggplot(data = MC.data,
+			 mapping = aes(x = MC_type, y = var.theta,
+			 							fill = MC_type, group = MC_type)) +
+	# Add a violin plot, represents the mirrored density of the given variable (var.theta)
+	geom_violin() +
+	# Split the plot by MC_type
+	facet_wrap(~ MC_type, scales = "free") +
+	# Add a boxplot
+	geom_boxplot(fill="white", width=0.3) +
+	# Remove the legend and x-axis
+	theme(legend.position = "none",
+				axis.text.x = element_blank(),
+				axis.ticks.x = element_blank(),
+				axis.title.x = element_blank())
+```
+
+```{r}
+median(theta.hat.vec)
+median(theta.star.vec)
+```
+
+```{r}
+median(var.theta.hat.vec)
+median(var.theta.star.vec)
+```
+```{r}
+set.seed(25)
+
+m <- 1000
+u <- runif(m)
+x <- 1 - log(u)
+
+g <- function(x) (x^2) / sqrt(2*pi) * exp(-((x^2)/2)) * (x>1)
+f <- function(x) (exp(-x)/exp(-1)) * (x>1)
+
+fg <- g(x)/f(x)
+
+(theta.hat <- mean(fg))
+(sd <- sd(fg))
+```
+
+```{r}
+set.seed(12)
+
+m <- 100
+
+u <- runif(m/2, 0, 0.5)
+(theta.hat <- (0.5/m) * sum(exp(u-0.5) + exp(-u)))
+```
+
+```{r}
+(var.theta.hat <- var(exp(u-0.5) + exp(-u))/(8*m))
+```
+
+```{r}
+set.seed(34)
+
+m <- 1000
+c_min <- 6 * (3 - exp(1))
+u <- runif(m)
+
+# Simple MC algorithm
+MC.samples <- exp(u)
+cvar.samples <- exp(u) - c_min * (u - 0.5)
+
+(theta.MC <- mean(MC.samples))
+(theta.c <- mean(cvar.samples))
+# true
+(exp(1) - 1)
+(theta.MC.var <- var(MC.samples))
+(theta.c.var <- var(cvar.samples))
+
+# Reduction in variance is relatively big
+theta.MC.var - theta.c.var
+```
+

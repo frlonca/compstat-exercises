@@ -1,0 +1,83 @@
+---
+title: "Ex1"
+output: html_notebook
+---
+### 1.
+cumsum() generates a cumulative sum of the elements of the vector
+```{r}
+n <- 1000 # sample size
+x <- 0:4 # discrete values 0 to 4
+p <- c(0.1, 0.2, 0.2, 0.2, 0.3) # probabilities
+Fx <- cumsum(p) # gives you the cdf
+
+# starting point of the random number generation
+set.seed(42) # for reproducibility
+
+u <- runif(n) # 1st step
+
+# This function executes the 2nd step for a given u
+sample_inverse <- function(u){
+min(x[u <= Fx])
+}
+# sapply applies the function to the given vector
+sample1 <- sapply(u, sample_inverse)
+```
+
+```{r}
+rel_freq <- table(sample1)/n # sum the number of occurences of for different digits and divide by n to get the frequency
+# Combine sample frequency and theoretical probabilities and round to 3 digits
+round(rbind(rel_freq, p), 3)
+```
+```{r}
+sample2 <- sample(x, n, replace = TRUE, p)
+# since the hist is designed for continuous distribution, setting prob=TRUE will plot the histogram so that the area is 1 (and the bars are of the width 0.5) -> hights = 2*p
+hist(sample2, probability = TRUE)
+```
+
+__QUESTION__: Learn more about the properties of ggplot2
+```{r}
+library(ggplot2)
+ggplot(data = data.frame(sample2), # commonly used fata object in R 
+       mapping = aes(x = sample2, y = stat(density))) + geom_histogram(binwidth = 1, color = "white")
+```
+
+### 2.
+```{r}
+rayleigh <- function(n, sigma){
+# Generate n uniform distributed variables
+u <- runif(n)
+x <- sigma * sqrt(-2 * log(u))
+# x <- sigma * sqrt(-2 * log(1 - u))
+}
+n <- 10
+sigmas <- c(0.5, 1, 2, 4)
+set.seed(300)
+rayleigh_samples <- sapply(sigmas, function(x) rayleigh(n, x))
+rayleigh_samples
+```
+
+```{r}
+class(rayleigh_samples)
+rayleigh_data_1 = rayleigh_samples[, 1]
+rayleigh_data_1
+unlist(rayleigh_samples)
+# rayleigh_data <- data.frame()
+```
+```{r}
+unlist(rayleigh_samples)
+rep(sigmas, each = n)
+```
+
+
+```{r}
+library(ggplot2)
+ggplot(rayleigh_data, aes(x = rayleigh, color = factor(sigma))) +
+# Add density
+geom_density() +
+# Add vertical lines corresponding to sigma
+geom_vline(aes(xintercept = sigma, color = factor(sigma)),
+linetype = "dotted") +
+# Change labels
+labs(title = "Density estimates for\ndifferent values of sigma", x = "x",
+color = expression(sigma))
+```

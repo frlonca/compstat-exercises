@@ -1,0 +1,104 @@
+---
+title: "Ex2"
+---
+
+
+```{r}
+set.seed(42)
+
+n <- 1000
+x1 <- rnorm(n, 0, 1)
+x2 <- rnorm(n, 4, 1)
+s <- x1 + x2
+
+library(ggplot2)
+
+ggplot(data.frame(s)) +
+	geom_histogram( mapping = aes( x = s, y = stat(density) ) ) +
+	stat_function(fun = dnorm, args = list(mean = 4, sd = sqrt(2))) +
+	# breaks denote where the ticks start, stop and spacing
+	scale_x_continuous(breaks = seq(-2, 10, 2))
+
+```
+2.c)
+```{r}
+p <- c(0.1, 0.4, 0.6, 0.8)
+
+ind <- lapply(p, function(p) sample(0:1, n, replace = TRUE, c(1-p, p)))
+# i * x1 is a elementwise multiplication of all elements in x1 with all elements in ind at index i (1000)
+x_mix <- lapply(ind, function(i) i * x1 + (1 - i) * x2)
+
+p_rep <- rep(p, each = n)
+
+mix_samples <- data.frame(p = rep(p, each = n), x = unlist(x_mix))
+
+ggplot(mix_samples) +
+	geom_density(mapping = aes(x = x)) +
+	facet_wrap(~ p)
+	
+```
+3. b) & c)
+```{r}
+n <- 5000
+theta <- c(0.1, 0.1, 0.2, 0.2, 0.3, 0.1)
+lambda <- c(0.5, 1, 1.5, 2, 2.5, 3)
+
+# Sample from the disrete lambda n times according to theta probabilities
+rate <- sample(lambda, size = n, replace = TRUE, prob = theta)
+# We take n samples, taking values for provided shape and rate in order and recycling them untili we have n samples
+# x - vector of variates 
+x <- rgamma(n, shape = 3, rate = rate)
+
+library(ggplot2)
+
+# geom_desity is the smooth version of a histogram
+p <- ggplot(data.frame(x)) +
+	geom_density(mapping = aes(x = x), color = "red", size = 1)
+
+# add layers to the plot
+for (i in 1:6){
+	# each layer is a density plot of gamma dist. for given shape and rate
+	p <- p + stat_function(fun = dgamma,
+												 args = list(shape = 3, rate = lambda[i]),
+												 linetype = "dashed")
+}
+p
+```
+
+```{r}
+generate_multinorm <- function(n, p, mu, Sigma) {
+	# byrow = TRUE takes the elements from the provided data (mu) and puts them in a matrix filling row by row and recycling
+	# mu will be a vector of the size p so matrix M will have this row vector repeat n times 
+	M <- matrix(mu, n, p, byrow = TRUE)
+	# here the data is of the size n*p and is stored in n,p matrix by filling columns
+	# a single variate of our random variable is of size 3 and we have n variates
+	Z <- matrix(rnorm(n * p), nrow = n, ncol = p)
+	# Cholesky: Sigma = Q' * Q
+	Q <- chol(Sigma)
+	X <- Z %*% Q + M
+}
+```
+
+```{r}
+set.seed(314)
+
+mu <- c(1,3,0)
+Sigma <- matrix(c(1,-0.8,-0.5, -0.8,1,0.2, -0.5,0.2,1), nrow = 3, ncol = 3)
+
+X200 <- generate_multinorm(n = 200, p = 3, mu, Sigma)
+X1000 <- generate_multinorm(n = 1000, p = 3, mu, Sigma)
+```
+
+```{r}
+library(GGally)
+# ggpairs will plot graphically the covariance matrix
+# on the diagonal, instead of the variance we will have density graph
+# off diagonal represent correlation in graphics (lower) and in numbers (upper)
+ggpairs(data.frame(X200))
+```
+	
+```{r}
+cov(X200)
+abs(Sigma - cov(X200))
+```
+

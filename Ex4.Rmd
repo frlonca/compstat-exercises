@@ -1,0 +1,38 @@
+```{r}
+times <- c(3, 5, 7, 18, 43, 85, 91, 98, 100, 130, 230, 487)
+
+lambda_mle <- 1 / mean(times)
+```
+
+```{r}
+B <- 200
+n <- 10
+# creates the array of length B for integers
+lambda_hat <- numeric(B)
+
+# compute 200 MLEs of lambda, each for different set of 10 realizations
+for (b in 1:B) {
+	x_samples <- rexp(n, 0.001)
+	lambda_hat[b] <- 1/mean(x_samples)
+}
+
+bias_b <- mean(lambda_hat) - 0.001
+mse_b <- sum((lambda_hat - 0.001)^2)/n
+```
+equivalent implementation without for-loop
+```{r}
+lambda_hat <- replicate(B, {
+	x_samples <- rexp(n, 0.001)
+	1/mean(x_samples)
+})
+# notice that there is no initialization of lambda_hat, because replicate already creates such an object
+```
+Now using times as the as the data
+```{r}
+B <- 200
+n <- length(times)
+lambda_hat <- replicate(B, 1/mean(sample(times, size = n, replace = TRUE)))
+```
+
+
+
