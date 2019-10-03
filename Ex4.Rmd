@@ -34,5 +34,51 @@ n <- length(times)
 lambda_hat <- replicate(B, 1/mean(sample(times, size = n, replace = TRUE)))
 ```
 
+Problem 2.
+```{r}
+height <- c(173, 183, 187, 179, 180, 186, 179, 196, 202, 198, 197, 185, 194, 185, 191, 182, 182, 187, 184, 186)
+B <- 1000
+n <- length(height)
+mean_height <- mean(height)
+
+theta_hat <- replicate(B, mean(sample(height, size = n, replace = TRUE)))
+```
+
+```{r}
+# standard normal bootstrap
+# qnorm returns the values on normal distribution (mean = 0, sd = 1) at 2.5% and 97.5%
+(stand_normal_ci <- mean_height + qnorm(c(0.025, 0.975)) * sd(theta_hat))
+```
+
+```{r}
+# basic bootstrap
+# quantile returns the sample quantities corresponding to the given probabilities
+(basic_ci <- 2 * mean_height - quantile(theta_hat, c(0.975, 0.025)))
+```
+```{r}
+percentile_ci <- quantile(theta_hat, c(0.025, 0.975))
+```
+
+```{r}
+B <- 1000
+n <- length(height)
+mean_height <- mean(height)
+theta_hat <- numeric(B)
+t_values <- numeric(B)
+# Compute t^(b) in each iteration
+for (b in 1:B) {
+	x_samples <- sample(height, size = n, replace = TRUE)
+	theta_hat[b] <- mean(x_samples)
+	# Sample the ste of x_samples with a nested bootstrap
+	theta_hat_rep <- numeric(B)
+	for (j in 1:B) {
+		theta_hat_rep[j] <- mean(sample(x_samples, size = n, replace = TRUE))
+		}
+	t_values[b] <- (theta_hat[b] - mean_height) / sd(theta_hat_rep)
+	}
+t_ci <- mean_height - quantile(t_values, c(0.975, 0.025)) * sd(theta_hat)
+```
+
+
 
 
