@@ -64,8 +64,7 @@ B <- 1000
 n <- length(height)
 mean_height <- mean(height)
 theta_hat <- numeric(B)
-t_values <- numeric(B)
-# Compute t^(b) in each iteration
+t_values <- numeric(B) # Compute t^(b) in each iteration
 for (b in 1:B) {
 	x_samples <- sample(height, size = n, replace = TRUE)
 	theta_hat[b] <- mean(x_samples)
@@ -73,11 +72,27 @@ for (b in 1:B) {
 	theta_hat_rep <- numeric(B)
 	for (j in 1:B) {
 		theta_hat_rep[j] <- mean(sample(x_samples, size = n, replace = TRUE))
-		}
-	t_values[b] <- (theta_hat[b] - mean_height) / sd(theta_hat_rep)
 	}
+	t_values[b] <- (theta_hat[b] - mean_height) / sd(theta_hat_rep)
+}
 t_ci <- mean_height - quantile(t_values, c(0.975, 0.025)) * sd(theta_hat)
 ```
+
+```{r}
+ci_data_list <- replicate(B, {
+	x_samples <- sample(height, size = n, replace = TRUE)
+	theta_hat <- mean(x_samples)
+	
+	theta_hat_rep <- replicate(B, mean(sample(x_samples, size = n, replace = TRUE)))
+	
+	data.frame(theta_hat, t_value = (theta_hat - mean_height) / sd(theta_hat_rep))
+}, simplify = FALSE)
+
+ci_data <- Reduce(rbind, ci_data_list)
+
+t_ci <- mean_height - quantile(t_ci_data$t_values, c(0.975, 0.025)) * sd(t_ci_data$theta_hat)
+```
+
 
 
 
