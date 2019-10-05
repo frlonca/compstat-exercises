@@ -1,0 +1,257 @@
+```{r}
+# Function for evaluating the Rayleigh density
+f <- function(x, sigma) {
+	
+	# For x < 0 we can return 0 automatically
+	if (any(x < 0)) return(0)
+	
+	stopifnot(sigma > 0) # only accept sigma values > 0
+	# Return the value of the Rayleigh density
+	return((x / sigma^2) * exp(-x^2 / (2 * sigma^2)))
+}
+```
+
+```{r}
+# Metropolis Hastings Sampler
+
+set.seed(159)
+
+N <- 10000 # Number of iterations
+
+sigma <- 4
+x <- numeric(N)
+k <- 0 # acceptance counter
+
+x[1] <- rgamma(1, 1, 1) # First inital value X_0
+
+u <- runif(N)
+
+for (i in 2:N) {
+	y <- rgamma(1, x[i-1], 1)
+	num <- f(y, sigma) * dgamma(x[i-1], y, 1)
+	den <- f(x[i-1], sigma) * dgamma(y, x[i-1],1)
+	if (u[i] <= num/den) {
+		x[i] <- y # accept y
+		k <- k + 1 # increase acceptance counter
+		} else {
+		x[i] <- x[i-1] # reject y
+		}
+}
+# Acceptance rate:
+k/N
+```
+
+```{r}
+library(ggplot2)
+metropolis_data <- data.frame(index = 1:N, x = x)
+# Neglect the first 10000*0.2 data points
+metropolis_data <- metropolis_data[-(1:(0.2*N)), ]
+ggplot(metropolis_data, aes(index, x)) +
+		geom_line()
+```
+3.
+```{r}
+set.seed(197)
+
+n <- 1000
+
+p <- 0.3
+
+chi <- c(2, 10)
+
+i <- sample(1:2, size = n, replace = TRUE, prob = c(p, 1 - p))
+# pick which chi should be generated with chi[i]
+x <- rchisq(n, chi[i])
+```
+
+```{r}
+library(ggplot2)
+ggplot(data.frame(x), aes(x)) +
+		geom_histogram(aes(y = stat(density)), bins = 20) +
+	# args = list(...) lists all the necessary arguments for the given function
+	# color = "some artificial name" tells that all the objects with this name have the same color
+	# 	this can also be considered grouping 
+		stat_function(aes(color = "chi-square df = 2"),
+									fun = dchisq, args = list(df = 2)) +
+		stat_function(aes(color = "chi-square df = 10"),
+									fun = dchisq, args = list(df = 10)) +
+		stat_function(aes(color = "mixture density"),
+									fun = function(x) p * dchisq(x, 2) + (1 - p) * dchisq(x, 10)) +
+	ylim(0, 0.15) +
+	theme(legend.title = element_blank())
+```
+
+```{r}
+
+# Function to generate the mixture density for a specific p
+f_star <- function(x, p) {
+p * dchisq(x, 2) + (1 - p) * dchisq(x, 10)
+}
+
+# Function to generate the independence sampler chain
+## x: sample from f^*
+## N: number of iterations
+## p0: starting value
+indep_sampler <- function(x, N, p0) {
+chi <- c(2, 10)
+
+p <- numeric(N)
+y <- runif(N)
+u <- runif(N)
+p[1] <- p0
+
+for (i in 2:N) {
+		fy <- f_star(x, y[i])
+		fx <- f_star(x, p[i-1])
+		r <- prod( fy / fx )
+		if (u[i] <= r) {
+			p[i] <- y[i] # accept y[i]
+		} else {
+			p[i] <- p[i-1] # reject y[i]
+		}
+}
+return(p)
+
+}
+```
+
+```{r}
+# Independence sampler for different starting values
+N <- 10000
+startp <- c(0.1, 0.5, 0.9)
+set.seed(68)
+indep_sampler_chains <- lapply(startp, indep_sampler, x = x, N = N)
+```
+
+```{r}
+indep_sampler_data <- data.frame(index = 1:N,
+																 samples = unlist(indep_sampler_chains),
+																 startp = rep(startp, each = N))
+ggplot(indep_sampler_data, aes(index, samples, color = factor(startp))) +
+	geom_line() +
+	labs(color = "Starting value")
+```
+
+```{r}
+indep_sampler_wo_burn_in <- indep_sampler_data[indep_sampler_data$index > 100, ]
+ggplot(indep_sampler_wo_burn_in, aes(index, samples, color = factor(startp))) +
+	geom_line() +
+	facet_wrap(~ startp, nrow = 3) +
+	labs(color = "Starting value")
+```
+```{r}
+# split the data (samples) according to startp and calculate function (mean) for each group
+aggregate(indep_sampler_wo_burn_in$samples,
+					by = list(indep_sampler_wo_burn_in$startp),
+					mean)
+```
+
+```{r}
+set.seed(4564)
+
+# Create the new sample
+n2 <- 10
+i2 <- sample(1:2, size = n2, replace = TRUE, prob = c(p, 1 - p))
+x2 <- rchisq(n2, chi[i2])
+indep_sampler_chains2 <- lapply(startp, indep_sampler, x = x2, N = N)
+```
+
+```{r}
+indep_sampler_data2 <- data.frame(index = 1:N,
+																	samples = unlist(indep_sampler_chains2),
+																	startp = rep(startp, each = N))
+# Discard the burn-in
+indep_sampler_wo_burn_in2 <- indep_sampler_data2[indep_sampler_data2$index > 100, ]
+p1 <- ggplot(subset(indep_sampler_wo_burn_in2, index %in% seq(1, N, 10)),
+						 aes(index, samples, color = factor(startp))) +
+	geom_line() +
+	facet_wrap(~startp, nrow = 3) +
+	labs(color = "Starting value", title = "Displaying every 10th iterate")
+
+p2 <- ggplot(subset(indep_sampler_wo_burn_in2, index %in% seq(1, N, 100)),
+						 aes(index, samples, color = factor(startp))) +
+	geom_line() +
+	facet_wrap(~startp, nrow = 3) +
+	labs(color = "Starting value", title = "Displaying every 100th iterate")
+
+p1
+p2
+
+aggregate(indep_sampler_wo_burn_in2$samples,
+					by = list(indep_sampler_wo_burn_in2$startp),
+					mean)
+```
+3.f)
+```{r}
+scalar_summary <- sapply(indep_sampler_chains, function(x) cumsum(x)/seq(along.with = x))
+scalar_summary <- t(scalar_summary)
+
+#Function that calculates the estimated potential scale reduction
+Gelman.Rubin <- function(X) {
+	X <- as.matrix(X)
+	n <- ncol(X)
+	k <- nrow(X) # number of chains
+	means <- rowMeans(X) # means of each chain
+	B <- n * var(means) # calculate the variance of means Between the chains
+	p.var <- apply(X, 1, var) 
+	W <- mean(p.var) # calculate the mean of the variances Within a chain
+	v.hat <- W * (n - 1)/n + B/n # some estimator
+	r.hat <- v.hat/W # value we want
+	return(r.hat)
+}
+# This value needs to be between 1.1 and 1.2 to indicate that the chain is o
+Rhat <- Gelman.Rubin(scalar_summary)
+print(Rhat)
+```
+```{r}
+var(rowMeans(scalar_summary)) 
+apply(scalar_summary, 1, var)
+```
+
+```{r}
+# < 1.2 is enough, but we got also very close to 1
+rhat_sequence <- sapply(1:N, function(j) Gelman.Rubin(scalar_summary[, 1:j]))
+ggplot(data.frame(index = 1:N, rhat = rhat_sequence), as(index, rhat)) +
+	geom_line() +
+	geom_hline(yintercept = 1.2, linetype = "dashed") +
+	ylim(1, 3)
+```
+```{r}
+# initialize constants and parameters
+N <- 5000 # length of chain
+burn <- 1000 # burn-in length
+X <- matrix(0, N, 2) # the chain, a bivariate sample
+
+rho <- .5 # correlation
+mu1 <- 2
+mu2 <- 3
+sigma1 <- 1
+sigma2 <- 1
+
+s1 <- sqrt(1 - rho^2) * sigma1
+s2 <- sqrt(1 - rho^2) * sigma2
+
+###### generate the chain #####
+X[1,] <- c(mu1, mu2) # initialize
+for (i in 2:N) {
+	x2 <- X[i-1, 2]
+	m1 <- mu1 + rho * (x2 - mu2) * sigma1/sigma2
+	X[i, 1] <- rnorm(1, m1, s1)
+	x1 <- X[i, 1]
+	m2 <- mu2 + rho * (x1 - mu1) * sigma2/sigma1
+	X[i, 2] <- rnorm(1, m2, s2)
+}
+b <- burn + 1
+x <- X[b:N,]
+```
+
+```{r}
+X <- cbind(rnorm(n, 2, 1), rnorm(n, 3, 1)) # they are completely uncorrelated so we generate them separately
+```
+
+```{r}
+X2 <- rnorm(n, 3, 1) # generate variates for the X2
+X1 <- 2 + (X2 - 3) # linear transformation to get X1 (since they are fully correlated)
+X <- cbind(X1, X2)
+```
+

@@ -1,0 +1,190 @@
+```{r}
+set.seed(98)
+(x <- runif(1, 0, 100))
+```
+```{r}
+a <- log(exp(x))
+b <- exp(log(x))
+# Test for equality
+x == a # returns the same as identical(x, a)
+```
+
+```{r}
+x == b # returns the same as identical(x, b)
+```
+```{r}
+a == b # returns the same as identical(a, b)
+```
+
+```{r}
+all.equal(x, a)
+```
+
+```{r}
+all.equal(x, b)
+```
+
+```{r}
+all.equal(b, a)
+```
+
+2.
+```{r}
+# Define the cauchy density
+my.dcauchy <- function (x, eta, theta) {
+	stopifnot(theta > 0)
+	return(1/(theta * pi * (1 + ((x - eta)/theta)^2)))
+}
+
+# Function to integrate the cauchy density
+my.pcauchy <- function (x, eta, theta, ...) {
+	stopifnot(theta > 0)
+	integral <- integrate(my.dcauchy, lower = -Inf, upper = x,
+	eta = eta, theta = theta, ...)
+	return(integral$value)
+}
+
+```
+
+```{r}
+library(ggplot2)
+
+plot_data <- data.frame(x = rep(seq(-10, 10, 0.1), times = 3), theta = rep(c(1, 10, 100), each = 201))
+plot_data$true <- pcauchy(plot_data$x, scale = plot_data$theta)
+plot_data$est <- apply(plot_data, 1, function(x) my.pcauchy(x[1], eta = 0, theta = x[2]))
+
+ggplot(plot_data, aes(x)) +
+	geom_line(aes(y = true, color = "pcauchy"), size = 1.5, alpha = 0.5) +
+	geom_line(aes(y = est, color = "my.pcauchy"),
+						linetype = "dashed", size = 1, alpha = 0.5) +
+	facet_wrap(~ theta) +
+	labs(color = "Function")
+```
+	
+```{r}
+equation <- function(alpha, xbar, log.xbar){
+	log(alpha/xbar) - digamma(alpha) + log.xbar
+}
+
+u <- uniroot(equation, lower = 0.001, upper = 10e5, xbar = xbar, log.xbar = log.xbar)
+
+alpha.hat <- u$root
+beta.hat <- alpha.hat/xbar
+```
+
+```{r}
+set.seed(627)
+# digamma is the first derivative of the logarithm of gamma function
+equation <- function(alpha, xbar, log.xbar){
+	log(alpha/xbar) - digamma(alpha) + log.xbar
+}
+
+m <- 2000 # Number of replicates
+n <- 200 # sample size
+
+alpha <- 5
+beta <- 2
+
+estimates <- replicate(m, {
+	# Generate the samples
+	x <- rgamma(n, alpha, beta)
+	# Calculate xbar, log.xbar
+	xbar <- mean(x)
+	log.xbar <- mean(log(x))
+	# Solve the problem with uniroot
+	u <- uniroot(equation, lower = 0.001, upper = 10e5,
+							 xbar = xbar, log.xbar = log.xbar)
+	alpha.hat <- u$root
+	beta.hat <- alpha.hat/xbar
+	# Return the results
+	c(alpha = alpha.hat, beta = beta.hat)
+})
+
+# Average estimates and standard deviation
+(est.avg <- apply(estimates, 1, mean))
+(est.sd <- apply(estimates, 1, sd))
+```
+
+4.
+```{r}
+set.seed(168)
+
+n <- 600
+p <- 0.65
+
+i <- sample(1:2, n, replace = TRUE, prob = c(p, 1 - p))
+lambda <- c(2, 6)
+x <- rpois(n, lambda[i])
+
+# to make the recurrent evaluation easy
+poisson_mixture <- function(x, p, lambda1, lambda2) {
+	p * dpois(x, lambda1) + (1 - p) * dpois(x, lambda2)
+}
+
+plot_data <- data.frame(x)
+plot_data$pois2 <- dpois(plot_data$x, 2)
+plot_data$pois6 <- dpois(plot_data$x, 6)
+plot_data$pois.mix <- poisson_mixture(plot_data$x, p, 2, 6)
+library(ggplot2)
+ggplot(plot_data, aes(x)) +
+	geom_bar(aes(y = stat(count)/n)) +
+	geom_point(aes(y = pois2, color = "Pois(2)")) +
+	geom_point(aes(y = pois6, color = "Pois(6)")) +
+	geom_point(aes(y = pois.mix, color = "Mixture")) +
+	labs(title = "Histogram of mixture", color = "Distribution")
+```
+
+```{r}
+N <- 200 # number of iterations
+
+params <- vector("list", N + 1) # list of parameter estimates
+params[[1]] <- c(0.4, 1, 7) # starting values (p, lambda1, lambda2)
+
+set.seed(837)
+for (j in 1:N) {
+	param <- params[[j]]
+	# Expectation of I_i given X and the parameters p^t, lambda1^t, lambda2^t
+	E.t <-
+		dpois(x, param[2]) * param[1] / poisson_mixture(x, param[1], param[2],
+																										param[3])
+	# Maximization of p, lambda1, lambda2
+	# Showed by hand that these formulas hold
+	p.hat <- sum(E.t) / n
+	lambda.1.hat <- sum(E.t * x) / sum(E.t)
+	lambda.2.hat <- sum((1 - E.t) * x) / sum(1 - E.t)
+	params[[j + 1]] <- c(p.hat, lambda.1.hat, lambda.2.hat)
+}
+```
+
+```{r}
+params[[N + 1]]
+```
+
+```{r}
+param.data <- do.call(rbind, params)
+param.data <- data.frame(param.data)
+
+# how to name the stuff in data.frame
+names(param.data) <- c("p", "lambda1", "lambda2")
+
+param.data$Iteration <- 1:(N + 1)
+
+ggplot(param.data, aes(Iteration)) +
+	geom_line(aes(y = p, color = "p")) +
+	geom_line(aes(y = lambda1, color = "lambda1")) +
+	geom_line(aes(y = lambda2, color = "lambda2")) +
+	scale_y_continuous(limits = c(0, NA), breaks = seq(0, 10, 0.5)) +
+	labs(color = "Parameter", y = "")
+```
+
+```{r}
+param <- params[[N + 1]]
+plot_data$mix.est <- poisson_mixture(plot_data$x, param[1], param[2], param[3])
+ggplot(plot_data, aes(x)) +
+	geom_bar(aes(y = stat(prop))) +
+	geom_point(aes(y = mix.est, color = "Estimated mixture")) +
+	geom_point(aes(y = pois.mix, color = "Mixture")) +
+	labs(title = "Histogram of mixture", color = "Distribution")
+```
+	
+	
