@@ -1,0 +1,146 @@
+```{r}
+n <- 1000 # sample size
+x <- 0:4 # discrete values 0 to 4
+p <- c(0.1, 0.2, 0.2, 0.2, 0.3) # probabilities
+Fx <- cumsum(p) # gives you the cdf
+
+set.seed(42) # for reproducibility
+
+u <- runif(n) # 1st step
+
+# This function executes the 2nd step for a given u
+sample_inverse <- function(u) {
+	min(x[u <= Fx])
+}
+
+# sapply is the user friendly version simply returning the vector with applied function on it
+sample1 <- sapply(u, sample_inverse)
+```
+
+```{r}
+rel_freq <- table(sample1)/n
+# Combine sample frequency and theoretical probabilities and round to 3 digits
+round(rbind(rel_freq, p), 3)
+```
+
+```{r}
+sample2 <- sample(x, n, replace = TRUE, p)
+
+library(ggplot2)
+ggplot(data = data.frame(sample2), mapping = aes(x = sample2, y = stat(density))) +
+	geom_histogram(binwidth = 1, color = "white")
+```
+
+2.
+```{r}
+rayleigh <- function(n, sigma) {
+	u <- runif(n)
+	x <- sigma * sqrt(-2 * log(u))
+}
+```
+
+```{r}
+n <- 1000
+sigmas <- c(0.5, 1, 2, 4)
+
+set.seed(300)
+rayleigh_samples <- lapply(sigmas, function(x) rayleigh(n, x))
+```
+
+```{r}
+rayleigh_data <- data.frame(sigma = rep(sigmas, each = n), rayleigh = unlist(rayleigh_samples))
+
+library(ggplot2)
+ggplot(rayleigh_data, aes(x = rayleigh, color = factor(sigma))) +
+	# Add density
+	geom_density() +
+	# Add vertical lines corresponding to sigma
+	geom_vline(aes(xintercept = sigma, color = factor(sigma)),
+						 linetype = "dotted") +
+	# Change labels
+	labs(title = "Density estimates for\ndifferent values of sigma", x = "x",
+			 color = expression(sigma))
+```
+
+
+3.
+```{r}
+set.seed(45)
+
+n <- 1000 # sample size
+k <- 0 # counter for accepted
+j <- 0 # iterations
+x <- numeric(n) # vector to store samples
+while (k < n) {
+	u <- runif(1) # uniform for u
+	j <- j + 1
+	y <- runif(1) # our envelope density is uniform, so y is also from uniform
+	if (12 * y * (1 - y)^4 > u) {
+		k <- k + 1
+		x[k] <- y
+	}
+}
+```
+
+```{r}
+library(ggplot2)
+ggplot(data.frame(x), aes(x)) +
+	geom_histogram(aes(y = stat(density)), color = "white") +
+	ggtitle("Sample histogram with the \nBeta(2,5)-density superimposed") +
+	stat_function(fun = dbeta,
+								# Specify arguments for dbeta with args = list(...)
+								args = list(shape1 = 2, shape2 = 5),
+								color = "blue", size = 1)
+```
+
+```{r}
+x.95 <- qexp(0.95, rate = 0.5)
+(n_b <- 4.75*exp(x.95)/(x.95^2))
+```
+```{r}
+n_b <- 53
+n_a <- 25
+
+set.seed(56)
+
+sample1 <- rexp(n_a, rate = 0.5)
+sample2 <- rexp(n_b, rate = 0.5)
+
+library(ggplot2)
+sample_data <- data.frame(sample = c(sample1, sample2),
+													size = rep(c("(a)", "(b)"), times = c(n_a, n_b)))
+ggplot(sample_data, aes(sample)) +
+	geom_histogram(aes(y = stat(density)), color = "white") +
+	facet_wrap(~ size) +
+	stat_function(fun = dexp, args = list(rate = 0.5), xlim = c(0, 10)) +
+	# Add vertical line for the mean
+	geom_vline(xintercept = 1/0.5, color = "darkblue") +
+	# Annotate the line that this is the mean
+	annotate(geom = "text", x = 1/0.5, y = 0.5, label = "mean", hjust = -0.15) +
+	# Add vertical line for the quantile
+	geom_vline(xintercept = qexp(0.95, rate = 0.5),
+						 linetype = "dashed", color = "darkblue") +
+	# Annotate the line that this is the quantile
+	annotate(geom = "text", x = qexp(0.95, rate = 0.5), y = 0.5,
+					 label = expression(x[0.95]), hjust = -0.15)
+```
+
+
+5.
+```{r}
+n_fun <- function(p, B, alpha) {
+	qnorm(1 - alpha/2)^2 * p * (1 - p) / B^2
+}
+
+library(ggplot2)
+p <- ggplot(data.frame(pi = c(0, 1)), aes(pi)) +
+	stat_function(fun = n_fun, args = list(B = 0.03, alpha = 0.05)) +
+	labs(x = expression(pi), y = "n")
+p
+```
+```{r}
+(n_max <- n_fun(0.5, 0.03, 0.05))
+```
+```{r}
+(n_15 <- n_fun(0.15, 0.03, 0.05))
+```
